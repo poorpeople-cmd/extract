@@ -3,20 +3,19 @@ const puppeteer = require('puppeteer');
 (async () => {
     console.log("🚀 Browser start ho raha hai (GitHub Actions Mode)...");
     
-    // ⚠️ CHANGES HERE: headless true aur sandbox disable kiya hai
     const browser = await puppeteer.launch({ 
-        headless: true, // GitHub par screen nahi hoti isliye true rakhna zaroori hai
+        headless: true, 
         defaultViewport: null,
         args: [
-            '--no-sandbox',              // Linux server ke liye zaroori
-            '--disable-setuid-sandbox',  // Linux server ke liye zaroori
+            '--no-sandbox',              
+            '--disable-setuid-sandbox',  
             '--mute-audio'
         ] 
     });
     
     const page = await browser.newPage();
 
-    // 💡 YEH HAI ASAL JADOO: Network Tab ko code se sunna
+    // 💡 Network Tab ko code se sunna
     page.on('request', (request) => {
         const url = request.url();
         
@@ -34,18 +33,20 @@ const puppeteer = require('puppeteer');
 
     console.log("🌐 Iframe URL load kar raha hoon...");
     
-    // Server par load hone mein thoda time lag sakta hai, isliye timeout badhaya hai
     await page.goto('https://dadocric.st/player.php?id=willowextra', { 
         waitUntil: 'networkidle2',
         timeout: 60000 
     });
 
+    // 👇 Yahan screen click wale block ko comment kar diya gaya hai 👇
+    /*
     console.log("🖱️ Screen par click kar raha hoon taake stream play ho...");
     try {
         await page.click('body');
     } catch (e) {
         // Click fail hua toh koi masla nahi
     }
+    */
 
     console.log("⏳ 15 second wait kar raha hoon taake stream load ho jaye...");
     await new Promise(r => setTimeout(r, 15000));
