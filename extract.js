@@ -51,7 +51,7 @@ if (!fs.existsSync(videoDir)){
 
     console.log("🌐 Iframe URL load kar raha hoon...");
     
-    await page.goto('https://dadocric.st/player.php?id=willowextra', { 
+    await page.goto('https://dadocric.st/player.php?id=starsp3', { 
         waitUntil: 'networkidle2',
         timeout: 60000 
     });
