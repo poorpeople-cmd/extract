@@ -1,4 +1,4 @@
-name: Extract M3U8 Link and Screenshots
+name: Extract M3U8 Link and Record Video
 
 on:
   workflow_dispatch:
@@ -16,16 +16,17 @@ jobs:
         with:
           node-version: '20' 
 
+      # Naya package 'puppeteer-screen-recorder' install karna zaroori hai
       - name: Install Dependencies
-        run: npm install puppeteer fs path
+        run: npm install puppeteer puppeteer-screen-recorder fs path
 
       - name: Run Extraction Code
         run: node extract.js
 
-      # Step 5: Screenshots folder ko Artifacts mein upload karna
-      - name: Upload Screenshots Artifact
+      # Step 5: Videos folder ko Artifacts mein upload karna
+      - name: Upload Video Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: stream-screenshots # Artifact ka naam (zip file ka naam banega)
-          path: screenshots/ # Konsa folder upload karna hai
-          retention-days: 5 # Screenshots kitne din tak save rahein (optional)
+          name: stream-video-record
+          path: videos/ # Videos folder upload karega
+          retention-days: 5 # Video 5 din tak GitHub par save rahegi
