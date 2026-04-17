@@ -1,21 +1,22 @@
 const puppeteer = require('puppeteer');
+const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
 const fs = require('fs');
 const path = require('path');
 
-// Screenshots save karne ke liye directory set karein
-const screenshotDir = path.join(__dirname, 'screenshots');
+// Video save karne ke liye directory set karein
+const videoDir = path.join(__dirname, 'videos');
 
 // Agar folder nahi hai toh naya bana lein
-if (!fs.existsSync(screenshotDir)){
-    fs.mkdirSync(screenshotDir);
+if (!fs.existsSync(videoDir)){
+    fs.mkdirSync(videoDir);
 }
 
 (async () => {
-    console.log("🚀 Browser start ho raha hai (Screenshot Mode)...");
+    console.log("🚀 Browser start ho raha hai (Video Recording Mode)...");
     
     const browser = await puppeteer.launch({ 
         headless: true, 
-        defaultViewport: { width: 1280, height: 720 }, // Ek standard screenshot size set karein
+        defaultViewport: { width: 1280, height: 720 }, // HD Video resolution
         args: [
             '--no-sandbox',              
             '--disable-setuid-sandbox',  
@@ -41,6 +42,13 @@ if (!fs.existsSync(screenshotDir)){
         }
     });
 
+    // 🎥 Video Recorder Setup
+    const recorder = new PuppeteerScreenRecorder(page);
+    const videoPath = path.join(videoDir, `stream-video-${Date.now()}.mp4`);
+    
+    console.log("🎥 Video recording start kar raha hoon...");
+    await recorder.start(videoPath);
+
     console.log("🌐 Iframe URL load kar raha hoon...");
     
     await page.goto('https://dadocric.st/player.php?id=willowextra', { 
@@ -48,28 +56,12 @@ if (!fs.existsSync(screenshotDir)){
         timeout: 60000 
     });
 
-    // Screenshots capture karne wala function
-    async function takeScreenshots() {
-        console.log("⏳ screenshots capture karna shuru kar raha hoon...");
-        for (let i = 1; i <= 3; i++) { // Misal ke tor par 3 screenshots
-            const timestamp = new Date().toISOString().replace(/:/g, '-');
-            const fileName = `screenshot-${i}-${timestamp}.png`;
-            const filePath = path.join(screenshotDir, fileName);
-            
-            try {
-                await page.screenshot({ path: filePath, fullPage: true });
-                console.log(`📸 Screenshot save hua: ${fileName}`);
-            } catch (error) {
-                console.error(`❌ Screenshot lene mein error:`, error.message);
-            }
-            
-            // Har screenshot ke beech mein thoda wait karein (misal ke tor par 5 seconds)
-            if (i < 3) await new Promise(r => setTimeout(r, 5000));
-        }
-    }
+    console.log("⏳ 15 second wait kar raha hoon (Video Record ho rahi hai)...");
+    await new Promise(r => setTimeout(r, 15000));
 
-    // Capture process shuru karein jab tak wait chal raha hai
-    await takeScreenshots();
+    // 🛑 Recording aur Browser band karna
+    console.log("🛑 Video recording stop kar raha hoon...");
+    await recorder.stop();
 
     console.log("🛑 Extraction mukammal. Browser band kar raha hoon.");
     await browser.close();
