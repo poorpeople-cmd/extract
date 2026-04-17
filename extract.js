@@ -1,11 +1,21 @@
 const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
+
+// Screenshots save karne ke liye directory set karein
+const screenshotDir = path.join(__dirname, 'screenshots');
+
+// Agar folder nahi hai toh naya bana lein
+if (!fs.existsSync(screenshotDir)){
+    fs.mkdirSync(screenshotDir);
+}
 
 (async () => {
-    console.log("🚀 Browser start ho raha hai (GitHub Actions Mode)...");
+    console.log("🚀 Browser start ho raha hai (Screenshot Mode)...");
     
     const browser = await puppeteer.launch({ 
         headless: true, 
-        defaultViewport: null,
+        defaultViewport: { width: 1280, height: 720 }, // Ek standard screenshot size set karein
         args: [
             '--no-sandbox',              
             '--disable-setuid-sandbox',  
@@ -38,18 +48,28 @@ const puppeteer = require('puppeteer');
         timeout: 60000 
     });
 
-    // 👇 Yahan screen click wale block ko comment kar diya gaya hai 👇
-    /*
-    console.log("🖱️ Screen par click kar raha hoon taake stream play ho...");
-    try {
-        await page.click('body');
-    } catch (e) {
-        // Click fail hua toh koi masla nahi
+    // Screenshots capture karne wala function
+    async function takeScreenshots() {
+        console.log("⏳ screenshots capture karna shuru kar raha hoon...");
+        for (let i = 1; i <= 3; i++) { // Misal ke tor par 3 screenshots
+            const timestamp = new Date().toISOString().replace(/:/g, '-');
+            const fileName = `screenshot-${i}-${timestamp}.png`;
+            const filePath = path.join(screenshotDir, fileName);
+            
+            try {
+                await page.screenshot({ path: filePath, fullPage: true });
+                console.log(`📸 Screenshot save hua: ${fileName}`);
+            } catch (error) {
+                console.error(`❌ Screenshot lene mein error:`, error.message);
+            }
+            
+            // Har screenshot ke beech mein thoda wait karein (misal ke tor par 5 seconds)
+            if (i < 3) await new Promise(r => setTimeout(r, 5000));
+        }
     }
-    */
 
-    console.log("⏳ 15 second wait kar raha hoon taake stream load ho jaye...");
-    await new Promise(r => setTimeout(r, 15000));
+    // Capture process shuru karein jab tak wait chal raha hai
+    await takeScreenshots();
 
     console.log("🛑 Extraction mukammal. Browser band kar raha hoon.");
     await browser.close();
