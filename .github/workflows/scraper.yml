@@ -1,0 +1,30 @@
+name: Extract M3U8 Link
+
+# Yeh batata hai ke action kab chalega
+on:
+  workflow_dispatch: # Isse aap GitHub par button daba kar manually run kar sakenge
+  # schedule:
+  #  - cron: '0 */6 * * *' # Agar aap chahein ke har 6 ghante baad khud chale, toh isko uncomment kar dein
+
+jobs:
+  run-puppeteer-script:
+    runs-on: ubuntu-latest # GitHub ka Linux server
+
+    steps:
+      # Step 1: Aapka code server par download karega
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Node.js install karega
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' 
+
+      # Step 3: Puppeteer ko install karega
+      - name: Install Dependencies
+        run: npm install puppeteer
+
+      # Step 4: Aapka code chalayega
+      - name: Run Extraction Code
+        run: node extract.js
