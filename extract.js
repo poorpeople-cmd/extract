@@ -57,7 +57,7 @@ if (!fs.existsSync(videoDir)){
     });
 
     console.log("⏳ 15 second wait kar raha hoon (Video Record ho rahi hai)...");
-    await new Promise(r => setTimeout(r, 15000));
+    await new Promise(r => setTimeout(r, 50000));
 
     // 🛑 Recording aur Browser band karna
     console.log("🛑 Video recording stop kar raha hoon...");
