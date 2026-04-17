@@ -16,17 +16,18 @@ jobs:
         with:
           node-version: '20' 
 
-      # Naya package 'puppeteer-screen-recorder' install karna zaroori hai
+      # Zaroori packages install karna
       - name: Install Dependencies
         run: npm install puppeteer puppeteer-screen-recorder fs path
 
+      # Code chalana (Proxy ab direct js file ke andar hai)
       - name: Run Extraction Code
         run: node extract.js
 
-      # Step 5: Videos folder ko Artifacts mein upload karna
+      # Videos folder ko Artifacts mein upload karna
       - name: Upload Video Artifact
         uses: actions/upload-artifact@v4
         with:
           name: stream-video-record
-          path: videos/ # Videos folder upload karega
-          retention-days: 5 # Video 5 din tak GitHub par save rahegi
+          path: videos/ 
+          retention-days: 5
