@@ -9,7 +9,7 @@ if (!fs.existsSync(videoDir)){
 }
 
 (async () => {
-    console.log("🚀 Browser start ho raha hai (Advanced Debugging Mode)...");
+    console.log("🚀 Browser start ho raha hai (Iframe Bypass Mode)...");
     
     const browser = await puppeteer.launch({ 
         headless: true, 
@@ -18,27 +18,27 @@ if (!fs.existsSync(videoDir)){
             '--no-sandbox',              
             '--disable-setuid-sandbox',  
             '--mute-audio',
-            '--autoplay-policy=no-user-gesture-required' // Auto-play restrictions hatane ke liye
+            '--autoplay-policy=no-user-gesture-required',
+            // 👇 YEH 2 LINES NAYI HAIN (ERR_BLOCKED_BY_RESPONSE KO FIX KARNE KE LIYE) 👇
+            '--disable-web-security',
+            '--disable-features=IsolateOrigins,site-per-process'
         ] 
     });
     
     const page = await browser.newPage();
 
-    // 🕵️‍♂️ DEBUGGING LOGIC START 🕵️‍♂️
-    
-    // 1. Browser ke andar ka console log print karega
+    // Browser ke andar ka console log print karega
     page.on('console', msg => console.log('💻 BROWSER CONSOLE:', msg.text()));
     
-    // 2. Agar page mein koi JavaScript error aaya toh batayega
-    page.on('pageerror', error => console.error('❌ PAGE ERROR:', error.message));
-    
-    // 3. Agar koi network request fail hui (e.g. Cloudflare ne block kiya) toh batayega
+    // Agar koi network request fail hui toh batayega
     page.on('requestfailed', request => {
-        console.error(`⚠️ REQUEST FAILED: ${request.url()} - Reason: ${request.failure()?.errorText}`);
+        // Sirf main errors dikhaye taake log lamba na ho
+        if(request.url().includes('player') || request.url().includes('php')) {
+            console.error(`⚠️ REQUEST FAILED: ${request.url()} - Reason: ${request.failure()?.errorText}`);
+        }
     });
 
-    // 🕵️‍♂️ DEBUGGING LOGIC END 🕵️‍♂️
-
+    // 💡 Asal M3U8 Pakadne ka Logic
     page.on('request', (request) => {
         const url = request.url();
         if (url.includes('.m3u8')) {
@@ -59,7 +59,6 @@ if (!fs.existsSync(videoDir)){
 
     console.log("🌐 Iframe URL load kar raha hoon...");
     
-    // Yahan timeout catch karne ka logic lagaya hai
     try {
         await page.goto('https://dadocric.st/player.php?id=willowextra', { 
             waitUntil: 'networkidle2',
@@ -69,34 +68,27 @@ if (!fs.existsSync(videoDir)){
         console.log("🚨 Goto Error:", e.message);
     }
 
-    // 🔍 Page ka status check karna
-    const title = await page.title();
-    console.log("📄 PAGE TITLE HAI:", title || "Koi title nahi");
-
-    if (title.toLowerCase().includes('cloudflare') || title.toLowerCase().includes('just a moment')) {
-        console.log("🚨 WARNING: Cloudflare (Anti-Bot) ne aapko block kar diya hai!");
-    }
-
-    // Check karna ke page par <video> ya <iframe> tag load hua bhi hai ya nahi?
-    const hasVideo = await page.evaluate(() => !!document.querySelector('video'));
-    const hasIframe = await page.evaluate(() => !!document.querySelector('iframe'));
-    console.log(`🔍 ELEMENT CHECK -> Video Tag: ${hasVideo ? 'HAAN' : 'NAHI'}, Iframe: ${hasIframe ? 'HAAN' : 'NAHI'}`);
-
-    // Ek naya tareeqa video khud play karwane ka
-    if (hasVideo) {
-        console.log("▶️ Video element mil gaya, code se Play command bhej raha hoon...");
-        try {
-            await page.evaluate(() => {
-                const v = document.querySelector('video');
-                if(v) v.play();
-            });
-        } catch (e) {
-            console.log("⚠️ Play command fail hui:", e.message);
-        }
-    }
-
-    console.log("⏳ 15 second wait kar raha hoon...");
+    console.log("⏳ 15 second wait kar raha hoon taake iframe poora load ho...");
     await new Promise(r => setTimeout(r, 15000));
+
+    // Ek aakhri koshish: Iframe ke andar ja kar video play command bhejna
+    console.log("🔍 Iframe ke andar video play karne ki koshish kar raha hoon...");
+    try {
+        for (const frame of page.frames()) {
+            await frame.evaluate(() => {
+                const v = document.querySelector('video');
+                if(v) {
+                    v.play();
+                    console.log("▶️ Iframe ke andar video play command chali gayi!");
+                }
+            }).catch(() => {}); // Agar kisi frame mein error aaye toh ignore karo
+        }
+    } catch (e) {
+        console.log("⚠️ Iframe play error:", e.message);
+    }
+
+    // Video chalne ke baad thoda aur wait
+    await new Promise(r => setTimeout(r, 5000));
 
     console.log("🛑 Video recording stop kar raha hoon...");
     await recorder.stop();
