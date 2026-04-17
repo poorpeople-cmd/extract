@@ -9,7 +9,7 @@ if (!fs.existsSync(videoDir)){
 }
 
 // 🛡️ Aapki Direct Proxy Details
-const proxyServer = 'http://31.59.20.176:6754';
+const proxyServer = 'http://31.58.9.4:6077';
 const proxyUsername = 'dgmtstlf';
 const proxyPassword = 'pm4wnuro0gy9';
 
