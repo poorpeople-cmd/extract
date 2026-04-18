@@ -1,8 +1,11 @@
 const puppeteer = require('puppeteer');
 const { spawn } = require('child_process');
+const http = require('http');
+const axios = require('axios');
+const { URL } = require('url');
 
 // ==========================================
-// 🛡️ ANTI-CRASH SHIELDS
+// 🛡️ ANTI-CRASH SHIELDS (PREVENTS SILENT FREEZE)
 // ==========================================
 process.on('uncaughtException', (err) => {
     console.log(`\n[🛡️ SILENT CRASH PREVENTED] Exception: ${err.message}`);
@@ -73,19 +76,24 @@ function formatPKT(timestampMs = Date.now()) {
 
     let streamData = null;
 
-    // 💡 Network Tab ko sunna
+    // 💡 Network Tab ko sunna (DNA Scanner Logic)
     page.on('response', async (response) => {
         const url = response.url();
         const status = response.status();
+        const headers = response.headers();
+        const contentType = headers['content-type'] || '';
         
-        // 🌟 NAYA: Sirf wo M3U8 pakro jo 403 Forbidden nahi de raha!
-        if (url.includes('.m3u8') && status === 200) {
-            const urlObj = new URL(url);
-            const expires = urlObj.searchParams.get('expires') || urlObj.searchParams.get('e') || urlObj.searchParams.get('exp');
-            let expireMs = expires ? parseInt(expires) * 1000 : Date.now() + (60 * 60 * 1000);
+        // 🌟 MASTERMIND FIX: Naam (.m3u8) ya DNA (Content-Type) check karo
+        const isPlaylist = url.includes('.m3u8') || contentType.includes('mpegurl') || contentType.includes('application/x-mpegURL');
 
+        // Sirf Valid (200 OK) Playlist pakro, 403 Forbidden ko ignore maro
+        if (isPlaylist && status === 200) {
             if (!streamData) { 
                 const request = response.request();
+                const urlObj = new URL(url);
+                const expires = urlObj.searchParams.get('expires') || urlObj.searchParams.get('e') || urlObj.searchParams.get('exp');
+                let expireMs = expires ? parseInt(expires) * 1000 : Date.now() + (60 * 60 * 1000);
+
                 streamData = {
                     url: url,
                     referer: request.headers()['referer'] || TARGET_URL,
@@ -95,8 +103,9 @@ function formatPKT(timestampMs = Date.now()) {
                 };
 
                 console.log("\n" + "=".repeat(60));
-                console.log("🎉 BINGO! Valid 200 OK M3U8 Link Pakra Gaya!");
+                console.log("🎉 BINGO! Valid 200 OK Stream File Pakri Gayi!");
                 console.log(`🔗 URL: ${url.substring(0, 80)}...`);
+                console.log(`🧬 CONTENT-TYPE: ${contentType || 'N/A'}`);
                 console.log(`📅 EXPIRY TIME: ${formatPKT(expireMs)}`);
                 console.log("=".repeat(60) + "\n");
             }
@@ -111,7 +120,7 @@ function formatPKT(timestampMs = Date.now()) {
         console.log("🚨 URL Load Error:", e.message);
     }
 
-    console.log("⏳ Smart Wait: Valid M3U8 link aane ka intezar kar raha hoon (Max 45s)...");
+    console.log("⏳ Smart Wait: Valid Stream link aane ka intezar kar raha hoon (Max 45s)...");
     let waitTimer = 0;
     while (!streamData && waitTimer < 45) {
         await new Promise(r => setTimeout(r, 1000));
@@ -134,17 +143,21 @@ function formatPKT(timestampMs = Date.now()) {
         const args = [
             "-re", "-loglevel", "error", 
             
-            // 🛡️ IP-BINDING FIX: FFmpeg ab wohi proxy use karega jo browser ne ki thi
+            // 🛡️ IP-BINDING FIX (AWS 403 block se bachne ke liye)
             "-http_proxy", ffmpegProxyUrl,
             
+            // 🛡️ DHEET FLAGS & TIME TRAVEL (Connection tootne par ya sequence badalne par crash roknay ke liye)
             "-reconnect", "1", 
             "-reconnect_at_eof", "1", 
             "-reconnect_streamed", "1", 
             "-reconnect_delay_max", "5",
+            "-fflags", "+genpts+igndts", 
+            "-err_detect", "ignore_err",
             
             "-headers", headersCmd, 
             "-i", streamData.url, 
             
+            // Low Quality Encoding (640x360 at 300k bitrate)
             "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "300k",
             "-vf", "scale=640:360", "-r", "20", "-c:a", "aac", "-b:a", "32k",
             "-f", "flv", RTMP_URL
@@ -168,10 +181,10 @@ function formatPKT(timestampMs = Date.now()) {
             let remainingMs = streamData.expireTime - Date.now();
             let minsLeft = Math.max(0, Math.round(remainingMs / 60000));
             console.log(`[💓 HEARTBEAT] Stream Server ${STREAM_ID} par live hai! Expiry mein approx ${minsLeft} minutes baqi hain...`);
-        }, 3 * 60 * 1000);
+        }, 3 * 60 * 1000); // Har 3 minute baad dhadkega
 
     } else {
-        console.log("\n❌ [FATAL ERROR] 45 seconds tak koi valid M3U8 link nahi mila. Exiting...");
+        console.log("\n❌ [FATAL ERROR] 45 seconds tak koi valid Stream link nahi mila. Exiting...");
         process.exit(1);
     }
 })();
