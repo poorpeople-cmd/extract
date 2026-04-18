@@ -62,7 +62,7 @@ const proxyPassword = 'pm4wnuro0gy9';
     console.log("🌐 Iframe URL load kar raha hoon...");
     
     try {
-        await page.goto('https://tvgotk.wapka.fun/hotstar', { 
+        await page.goto('https://executeandship.com/premiumcr.php?player=desktop&live=willowextra', { 
             waitUntil: 'networkidle2',
             timeout: 60000 
         });
