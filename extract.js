@@ -62,7 +62,7 @@ const proxyPassword = 'pm4wnuro0gy9';
     console.log("🌐 Iframe URL load kar raha hoon...");
     
     try {
-        await page.goto('https://dadocric.st/player.php?id=willowextra', { 
+        await page.goto('https://tvgotk.wapka.fun/hotstar', { 
             waitUntil: 'networkidle2',
             timeout: 60000 
         });
