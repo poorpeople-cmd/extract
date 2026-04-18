@@ -1,33 +1,217 @@
-name: Extract M3U8 Link and Record Video
+name: Project 10 - Extract & Stream to OK.ru
 
 on:
   workflow_dispatch:
+    inputs:
+      stream_id:
+        description: 'Select OK.ru Stream Server ID (1, 2, 3, or 4)'
+        required: true
+        type: choice
+        options:
+          - '1'
+          - '2'
+          - '3'
+          - '4'
+        default: '1'
+      target_url:
+        description: 'Target Video Link (Website URL)'
+        required: true
+        default: 'https://dlstreams.com/embed/stream-31.php'
 
 jobs:
-  run-puppeteer-script:
+  run-streamer:
     runs-on: ubuntu-latest
+    timeout-minutes: 360 # 6 ghante ki limit
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Install System Tools (FFmpeg & Chrome)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg google-chrome-stable xvfb
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20' 
 
-      # Zaroori packages install karna
       - name: Install Dependencies
-        run: npm install puppeteer puppeteer-screen-recorder fs path
+        run: npm install puppeteer
 
-      # Code chalana (Proxy ab direct js file ke andar hai)
-      - name: Run Extraction Code
-        run: node extract.js
+      - name: Run Extraction & Stream Code
+        env:
+          STREAM_ID: ${{ inputs.stream_id }}
+          TARGET_URL: ${{ inputs.target_url }}
+        # xvfb-run zaroori hai taake headless chrome ko virtual display mil sake
+        run: xvfb-run --auto-servernum node extract.js
 
-      # Videos folder ko Artifacts mein upload karna
-      - name: Upload Video Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: stream-video-record
-          path: videos/ 
-          retention-days: 5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# // ============== 100% correct for just extract the m3u8 link ==============================================
+
+
+
+
+
+
+
+# name: Extract M3U8 Link and Record Video
+
+# on:
+#   workflow_dispatch:
+
+# jobs:
+#   run-puppeteer-script:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout Repository
+#         uses: actions/checkout@v4
+
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '20' 
+
+#       # Zaroori packages install karna
+#       - name: Install Dependencies
+#         run: npm install puppeteer puppeteer-screen-recorder fs path
+
+#       # Code chalana (Proxy ab direct js file ke andar hai)
+#       - name: Run Extraction Code
+#         run: node extract.js
+
+#       # Videos folder ko Artifacts mein upload karna
+#       - name: Upload Video Artifact
+#         uses: actions/upload-artifact@v4
+#         with:
+#           name: stream-video-record
+#           path: videos/ 
+#           retention-days: 5
