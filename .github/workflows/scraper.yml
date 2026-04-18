@@ -38,7 +38,7 @@ jobs:
           node-version: '20' 
 
       - name: Install Dependencies
-        run: npm install puppeteer
+        run: npm install puppeteer axios
 
       - name: Run Extraction & Stream Code
         env:
@@ -46,7 +46,6 @@ jobs:
           TARGET_URL: ${{ inputs.target_url }}
         # xvfb-run zaroori hai taake headless chrome ko virtual display mil sake
         run: xvfb-run --auto-servernum node extract.js
-
 
 
 
