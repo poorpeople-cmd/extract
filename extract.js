@@ -1,20 +1,29 @@
-const puppeteer = require('puppeteer');
-const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
-const fs = require('fs');
-const path = require('path');
 
-const videoDir = path.join(__dirname, 'videos');
-if (!fs.existsSync(videoDir)){
-    fs.mkdirSync(videoDir);
-}
+const puppeteer = require('puppeteer');
+const { spawn } = require('child_process');
 
 // 🛡️ Aapki Direct Proxy Details
 const proxyServer = 'http://142.111.67.146:5611';
 const proxyUsername = 'dgmtstlf';
 const proxyPassword = 'pm4wnuro0gy9';
 
+// 🔑 OK.RU STREAM SETTINGS (Yahan apni OK.ru ki key daal lein)
+const STREAM_KEY = process.env.STREAM_KEY || '14601603391083_14040893622891_puxzrwjniu';
+const RTMP_URL = `rtmp://vsu.okcdn.ru/input/${STREAM_KEY}`;
+
+const TARGET_URL = 'https://dlstreams.com/embed/stream-31.php';
+
+function formatPKT(timestampMs = Date.now()) {
+    return new Date(timestampMs).toLocaleString('en-US', {
+        timeZone: 'Asia/Karachi', hour12: true, year: 'numeric', month: 'short',
+        day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
+    }) + " PKT";
+}
+
 (async () => {
-    console.log("🚀 Browser start ho raha hai (Direct Proxy Mode)...");
+    console.log(`\n[🚀 MAIN] Project 10 Boot: ${formatPKT()}`);
+    console.log("-".repeat(60));
+    console.log("[🔍 STEP 1] Browser start ho raha hai (Direct Proxy Mode)...");
     
     const browser = await puppeteer.launch({ 
         headless: true, 
@@ -23,59 +32,344 @@ const proxyPassword = 'pm4wnuro0gy9';
             '--no-sandbox',              
             '--disable-setuid-sandbox',  
             '--mute-audio',
-            '--autoplay-policy=no-user-gesture-required',
-            `--proxy-server=${proxyServer}` // 🌐 Proxy yahan set ho rahi hai
+            '--autoplay-policy=no-user-gesture-required', // Auto-play unblocker
+            `--proxy-server=${proxyServer}` // 🌐 Proxy
         ] 
     });
     
     const page = await browser.newPage();
 
-    // 🔐 Proxy par Username aur Password lagana
     console.log("🔐 Proxy ID aur Password apply kar raha hoon...");
-    await page.authenticate({
-        username: proxyUsername,
-        password: proxyPassword
-    });
+    await page.authenticate({ username: proxyUsername, password: proxyPassword });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+    let streamData = null;
 
     // 💡 Network Tab ko sunna
     page.on('request', (request) => {
         const url = request.url();
         
         if (url.includes('.m3u8')) {
-            console.log("\n" + "=".repeat(50));
-            console.log("🎉 BINGO! M3U8 Link Pakra Gaya!");
-            console.log("🔗 URL:", url);
-            
-            const headers = request.headers();
-            console.log("🛡️ Referer:", headers['referer'] || "Nahi mila");
-            console.log("🍪 Cookie:", headers['cookie'] || "Nahi mili");
-            console.log("=".repeat(50) + "\n");
+            const urlObj = new URL(url);
+            const expires = urlObj.searchParams.get('expires') || urlObj.searchParams.get('e') || urlObj.searchParams.get('exp');
+            let expireMs = expires ? parseInt(expires) * 1000 : Date.now() + (60 * 60 * 1000);
+
+            if (!streamData) { // Sirf pehla M3U8 pakarna hai
+                streamData = {
+                    url: url,
+                    referer: request.headers()['referer'] || TARGET_URL,
+                    cookie: request.headers()['cookie'] || '',
+                    ua: request.headers()['user-agent'] || '',
+                    expireTime: expireMs
+                };
+
+                console.log("\n" + "=".repeat(60));
+                console.log("🎉 BINGO! M3U8 Link Pakra Gaya!");
+                console.log(`🔗 URL: ${url.substring(0, 100)}...`);
+                console.log(`📅 EXPIRY TIME: ${formatPKT(expireMs)}`);
+                console.log("=".repeat(60) + "\n");
+            }
         }
     });
 
-    const recorder = new PuppeteerScreenRecorder(page);
-    const videoPath = path.join(videoDir, `stream-video-${Date.now()}.mp4`);
-    
-    console.log("🎥 Video recording start kar raha hoon...");
-    await recorder.start(videoPath);
-
-    console.log("🌐 Iframe URL load kar raha hoon...");
-    
+    console.log(`🌐 Target URL load kar raha hoon: ${TARGET_URL}`);
     try {
-        await page.goto('https://dlstreams.com/embed/stream-31.php', { 
-            waitUntil: 'networkidle2',
+        await page.goto(TARGET_URL, { 
+            waitUntil: 'domcontentloaded', // Fast aur safe loading
             timeout: 60000 
         });
+
+        // ⚠️ CLICK COMMENTED AS REQUESTED
+        // await page.click('body').catch(() => {});
+        console.log("🚫 (Click functions comment kar diye gaye hain)");
+
     } catch(e) {
         console.log("🚨 URL Load Error:", e.message);
     }
 
-    console.log("⏳ 20 second wait kar raha hoon (Video Record ho rahi hai)...");
-    await new Promise(r => setTimeout(r, 20000));
-
-    console.log("🛑 Video recording stop kar raha hoon...");
-    await recorder.stop();
+    console.log("⏳ Smart Wait: M3U8 link aane ka intezar kar raha hoon (Max 30s)...");
+    let waitTimer = 0;
+    while (!streamData && waitTimer < 30) {
+        await new Promise(r => setTimeout(r, 1000));
+        waitTimer++;
+    }
 
     console.log("🛑 Extraction mukammal. Browser band kar raha hoon.");
     await browser.close();
+
+    // ==========================================
+    // 2️⃣ FFMPEG ENGINE (STREAM TO OK.RU)
+    // ==========================================
+    if (streamData) {
+        console.log(`\n[🚀 STEP 2] FFmpeg Engine Shuru... (Streaming to OK.RU in Low Quality 640x360)`);
+        console.log(`[⏰ TIME] FFmpeg Started at: ${formatPKT()}`);
+
+        const headersCmd = `User-Agent: ${streamData.ua}\r\nReferer: ${streamData.referer}\r\nCookie: ${streamData.cookie}\r\n`;
+
+        const args = [
+            "-re", "-loglevel", "error", 
+            "-headers", headersCmd, 
+            "-i", streamData.url, 
+            
+            // Low Quality Encoding (640x360 at 300k bitrate)
+            "-c:v", "libx264", "-preset", "ultrafast", "-b:v", "300k",
+            "-vf", "scale=640:360", "-r", "20", "-c:a", "aac", "-b:a", "32k",
+            "-f", "flv", RTMP_URL
+        ];
+
+        const ffmpeg = spawn('ffmpeg', args);
+
+        ffmpeg.stderr.on('data', (err) => {
+            const msg = err.toString().trim();
+            console.log(`[⚠️ FFmpeg Log]: ${msg}`);
+        });
+
+        ffmpeg.on('close', (code) => {
+            console.log(`\n🛑 FFmpeg Band Hua. (Code: ${code})`);
+            console.log(`[🛑] Stream khatam ho gayi hai. Script exit kar rahi hai.`);
+            process.exit(code);
+        });
+
+        // 💓 HEARTBEAT (KEEPS GITHUB ALIVE)
+        setInterval(() => {
+            let remainingMs = streamData.expireTime - Date.now();
+            let minsLeft = Math.max(0, Math.round(remainingMs / 60000));
+            console.log(`[💓 HEARTBEAT] Stream live hai! Expiry mein approx ${minsLeft} minutes baqi hain...`);
+        }, 3 * 60 * 1000);
+
+    } else {
+        console.log("\n❌ [FATAL ERROR] 30 seconds tak koi M3U8 link nahi mila. Exiting...");
+        process.exit(1);
+    }
 })();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============== 100% correct for just extract the m3u8 link ==============================================
+
+
+
+
+
+
+
+// const puppeteer = require('puppeteer');
+// const { PuppeteerScreenRecorder } = require('puppeteer-screen-recorder');
+// const fs = require('fs');
+// const path = require('path');
+
+// const videoDir = path.join(__dirname, 'videos');
+// if (!fs.existsSync(videoDir)){
+//     fs.mkdirSync(videoDir);
+// }
+
+// // 🛡️ Aapki Direct Proxy Details
+// const proxyServer = 'http://142.111.67.146:5611';
+// const proxyUsername = 'dgmtstlf';
+// const proxyPassword = 'pm4wnuro0gy9';
+
+// (async () => {
+//     console.log("🚀 Browser start ho raha hai (Direct Proxy Mode)...");
+    
+//     const browser = await puppeteer.launch({ 
+//         headless: true, 
+//         defaultViewport: { width: 1280, height: 720 },
+//         args: [
+//             '--no-sandbox',              
+//             '--disable-setuid-sandbox',  
+//             '--mute-audio',
+//             '--autoplay-policy=no-user-gesture-required',
+//             `--proxy-server=${proxyServer}` // 🌐 Proxy yahan set ho rahi hai
+//         ] 
+//     });
+    
+//     const page = await browser.newPage();
+
+//     // 🔐 Proxy par Username aur Password lagana
+//     console.log("🔐 Proxy ID aur Password apply kar raha hoon...");
+//     await page.authenticate({
+//         username: proxyUsername,
+//         password: proxyPassword
+//     });
+
+//     // 💡 Network Tab ko sunna
+//     page.on('request', (request) => {
+//         const url = request.url();
+        
+//         if (url.includes('.m3u8')) {
+//             console.log("\n" + "=".repeat(50));
+//             console.log("🎉 BINGO! M3U8 Link Pakra Gaya!");
+//             console.log("🔗 URL:", url);
+            
+//             const headers = request.headers();
+//             console.log("🛡️ Referer:", headers['referer'] || "Nahi mila");
+//             console.log("🍪 Cookie:", headers['cookie'] || "Nahi mili");
+//             console.log("=".repeat(50) + "\n");
+//         }
+//     });
+
+//     const recorder = new PuppeteerScreenRecorder(page);
+//     const videoPath = path.join(videoDir, `stream-video-${Date.now()}.mp4`);
+    
+//     console.log("🎥 Video recording start kar raha hoon...");
+//     await recorder.start(videoPath);
+
+//     console.log("🌐 Iframe URL load kar raha hoon...");
+    
+//     try {
+//         await page.goto('https://dlstreams.com/embed/stream-31.php', { 
+//             waitUntil: 'networkidle2',
+//             timeout: 60000 
+//         });
+//     } catch(e) {
+//         console.log("🚨 URL Load Error:", e.message);
+//     }
+
+//     console.log("⏳ 20 second wait kar raha hoon (Video Record ho rahi hai)...");
+//     await new Promise(r => setTimeout(r, 20000));
+
+//     console.log("🛑 Video recording stop kar raha hoon...");
+//     await recorder.stop();
+
+//     console.log("🛑 Extraction mukammal. Browser band kar raha hoon.");
+//     await browser.close();
+// })();
